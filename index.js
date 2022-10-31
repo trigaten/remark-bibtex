@@ -75,7 +75,7 @@ export default function remarkBibtex(pluginOptions) {
     uniqueCiteRefs.forEach((citeRef, idx) => {
       const cited = citations.format('bibliography', {
         format: 'text',
-        template: 'vancouver',
+        template: pluginOptions.template || "apa",
         entry: citeRef,
       })
       // add to footnotes
