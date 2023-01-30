@@ -21,6 +21,15 @@ export default function remarkBibtex(pluginOptions) {
     // keep track of unique references
     const uniqueCiteRefs = []
     // visit nodes to find and extract citations
+    let existingFootnotes = [];
+    visit(markdownAST, 'text', (node, idx, parent) => {
+      parent.children?.forEach((el) => {
+        if ('footnoteReference' === el.type && existingFootnotes.indexOf(el.identifier) < 0) {
+          existingFootnotes.push(el.identifier);
+        }
+      });
+    })
+
     visit(markdownAST, 'text', (node, idx, parent) => {
       // extract the starting and ending string indices for found citation keys
       const match = node.value.match(regexp)
@@ -48,6 +57,7 @@ export default function remarkBibtex(pluginOptions) {
       } else {
         footnoteKey = uniqueCiteRefs.indexOf(citeRef) + 1
       }
+      footnoteKey += existingFootnotes.length;
       // add
       const citeNode = {
         type: 'footnoteReference',
@@ -81,8 +91,8 @@ export default function remarkBibtex(pluginOptions) {
       // add to footnotes
       markdownAST.children.push({
         type: 'footnoteDefinition',
-        identifier: idx + 1,
-        label: idx + 1,
+        identifier: idx + 1 + existingFootnotes.length,
+        label: idx + 1 + existingFootnotes.length,
         children: [
           {
             type: 'paragraph',
