@@ -21,6 +21,16 @@ export default function remarkBibtex(pluginOptions) {
     // keep track of unique references
     const uniqueCiteRefs = []
     // visit nodes to find and extract citations
+    let existingFootnotes = [];
+    visit(markdownAST, 'text', (node, idx, parent) => {
+      parent.children?.forEach((el) => {
+        if ('footnoteReference' === el.type && existingFootnotes.indexOf(el.identifier) < 0) {
+          existingFootnotes.push(el.identifier)
+        }
+      });
+    })
+
+    let lastFootnoteKey = 0
     visit(markdownAST, 'text', (node, idx, parent) => {
       // extract the starting and ending string indices for found citation keys
       const match = node.value.match(regexp)
@@ -48,7 +58,12 @@ export default function remarkBibtex(pluginOptions) {
       } else {
         footnoteKey = uniqueCiteRefs.indexOf(citeRef) + 1
       }
+      // existingFootnotes can't contains footnotekey
+      while( existingFootnotes.indexOf(footnoteKey.toString()) >= 0 || footnoteKey <= lastFootnoteKey ) {
+        footnoteKey++
+      }
       // add
+      lastFootnoteKey = footnoteKey
       const citeNode = {
         type: 'footnoteReference',
         identifier: footnoteKey,
@@ -72,6 +87,7 @@ export default function remarkBibtex(pluginOptions) {
     // add the footnotes
     // generate the bib text
     // https://citation.js.org/api/0.3/tutorial-output_formats.html
+    let lastNewIdentifier = 0
     uniqueCiteRefs.forEach((citeRef, idx) => {
       const cited = citations.format('bibliography', {
         format: 'text',
@@ -79,10 +95,16 @@ export default function remarkBibtex(pluginOptions) {
         entry: citeRef,
       })
       // add to footnotes
-      markdownAST.children.push({
+      let newIdentifier = idx + 1;
+      // existingFootnotes can't contains newIdentifier
+      while( existingFootnotes.indexOf(newIdentifier.toString()) >= 0 || newIdentifier <= lastNewIdentifier ) {
+        newIdentifier++
+      }
+      lastNewIdentifier = newIdentifier
+      let newChildren = {
         type: 'footnoteDefinition',
-        identifier: idx + 1,
-        label: idx + 1,
+        identifier: newIdentifier,
+        label: newIdentifier,
         children: [
           {
             type: 'paragraph',
@@ -94,7 +116,8 @@ export default function remarkBibtex(pluginOptions) {
             ],
           },
         ],
-      })
+      };
+      markdownAST.children.push(newChildren)
     })
     return markdownAST
   }
